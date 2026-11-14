@@ -1,0 +1,72 @@
+import { useState } from "react"
+import { exportAll, importAll } from "../lib/db"
+import * as gemini from "../lib/ai/gemini"
+import { toast } from "../lib/toast"
+import { Icon } from "./Icon"
+
+export function SettingsView() {
+  const [key, setKey] = useState(gemini.getKey())
+  const [status, setStatus] = useState<string | null>(null)
+
+  const saveKey = async () => {
+    gemini.setKey(key)
+    if (!key) { setStatus("Key removed. ThinkInk uses on-device AI only."); return }
+    setStatus("Checking key…")
+    try { setStatus((await gemini.testKey()) ? "✅ Key works. Smarter summaries, flashcards, quizzes and answers are on." : "Key saved, but the test reply was unexpected.") }
+    catch (e) { setStatus(`⚠️ ${(e as Error).message}`) }
+  }
+
+  const backup = async () => {
+    const data = await exportAll()
+    const blob = new Blob([JSON.stringify(data)], { type: "application/json" })
+    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: `thinkink-backup-${new Date().toISOString().slice(0, 10)}.json` })
+    a.click(); URL.revokeObjectURL(a.href)
+    toast(`Backed up ${data.notes.length} notes.`)
+  }
+  const restore = () => {
+    const input = Object.assign(document.createElement("input"), { type: "file", accept: "application/json,.json" })
+    input.onchange = async () => {
+      const f = input.files?.[0]
+      if (!f) return
+      try { toast(`Restored ${await importAll(JSON.parse(await f.text()))} notes.`) }
+      catch (e) { toast((e as Error).message || "That file couldn't be read.") }
+    }
+    input.click()
+  }
+
+  return (
+    <div className="view"><div className="view-inner" style={{ display: "grid", gap: 18 }}>
+      <div><h1>Settings & backup</h1><p className="lead">Your notes live privately in this browser. Nothing is uploaded unless you use a Gemini key or share a link.</p></div>
+
+      <section className="card" style={{ display: "grid", gap: 10 }}>
+        <h2 style={{ margin: 0, fontSize: 18 }}>AI</h2>
+        <p style={{ margin: 0 }}><strong>Built in, free and private:</strong> search by meaning, related notes, lecture transcripts, key-sentence summaries, flashcards and quizzes. The models download once (about 60 MB) and then run on your device.</p>
+        <p style={{ margin: 0 }}><strong>Optional, smarter:</strong> paste a free Google Gemini API key for written summaries, AI-written flashcards and quizzes, and answers with sources. <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">Get a free key</a>.</p>
+        <div className="row">
+          <input className="input" style={{ flex: 1, minWidth: 220 }} type="password" value={key} onChange={(e) => setKey(e.target.value)} placeholder="Gemini API key (optional)" aria-label="Gemini API key" autoComplete="off" />
+          <button className="btn btn-primary" onClick={saveKey}>Save</button>
+          {gemini.hasKey() && <button className="btn btn-ghost" onClick={() => { setKey(""); gemini.setKey(""); setStatus("Key removed.") }}>Remove</button>}
+        </div>
+        {status && <p style={{ margin: 0 }} aria-live="polite">{status}</p>}
+        <p className="notice" style={{ margin: 0 }}>The key is stored only in this browser and sent only to Google. When you use it, the text of the notes involved is sent to Google's Gemini API.</p>
+      </section>
+
+      <section className="card" style={{ display: "grid", gap: 10 }}>
+        <h2 style={{ margin: 0, fontSize: 18 }}>Backup & move devices</h2>
+        <p style={{ margin: 0 }}>Download everything (notes, drawings, recordings, flashcards) as one file, then restore it on another device or browser.</p>
+        <div className="row">
+          <button className="btn" onClick={backup}><Icon name="download" /> Download backup</button>
+          <button className="btn" onClick={restore}><Icon name="upload" /> Restore from backup</button>
+        </div>
+        <p className="notice" style={{ margin: 0 }}>Clearing your browser's site data deletes notes stored here, so download a backup now and then.</p>
+      </section>
+
+      <section className="card" style={{ display: "grid", gap: 8 }}>
+        <h2 style={{ margin: 0, fontSize: 18 }}>Keyboard shortcuts</h2>
+        {[["Ctrl/⌘ K", "Search & jump anywhere"], ["Ctrl/⌘ Alt N", "New note"], ["[[ ]]", "Link to another note"], ["Ctrl/⌘ B · I · U", "Bold · italic · underline"], ["Space, 1–4", "Flip and grade flashcards"]].map(([k, d]) => (
+          <div key={k} className="row" style={{ justifyContent: "space-between" }}><span>{d}</span><kbd>{k}</kbd></div>
+        ))}
+      </section>
+    </div></div>
+  )
+}

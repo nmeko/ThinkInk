@@ -1,0 +1,11 @@
+{
+  "name": "ThinkInk",
+  "short_name": "ThinkInk",
+  "description": "AI notes that study with you.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#faf8f3",
+  "theme_color": "#2f4ac0",
+  "icons": [{ "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}
