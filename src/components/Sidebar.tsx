@@ -6,7 +6,7 @@ import { Icon } from "./Icon"
 
 export type View =
   | { kind: "notes"; filter: "all" | "pinned" | "trash" | "notebook" | "tag"; id?: string }
-  | { kind: "study" } | { kind: "ask" } | { kind: "graph" } | { kind: "settings" }
+  | { kind: "study" } | { kind: "ask" } | { kind: "graph" } | { kind: "settings" } | { kind: "hub"; id?: string }
 
 type Props = {
   view: View
@@ -15,11 +15,12 @@ type Props = {
   notebooks: Notebook[]
   dueCount: number
   onNew: (t?: Template) => void
+  onImport: () => void
   theme: string
   toggleTheme: () => void
 }
 
-export function Sidebar({ view, setView, notes, notebooks, dueCount, onNew, theme, toggleTheme }: Props) {
+export function Sidebar({ view, setView, notes, notebooks, dueCount, onNew, onImport, theme, toggleTheme }: Props) {
   const [menu, setMenu] = useState(false)
   const live = notes.filter((n) => !n.deletedAt)
   const tags = [...new Set(live.flatMap((n) => n.tags))].sort()
@@ -52,12 +53,14 @@ export function Sidebar({ view, setView, notes, notebooks, dueCount, onNew, them
           </div>
         )}
       </div>
+      <button className="btn btn-ghost import-btn" onClick={onImport}><Icon name="fileImport" /> Import notes, slides or a photo</button>
       <div className="side-scroll">
         {item({ kind: "notes", filter: "all" }, <Icon name="note" />, "All notes", <span className="count">{live.length}</span>)}
         {item({ kind: "notes", filter: "pinned" }, <Icon name="pin" />, "Pinned")}
         {item({ kind: "ask" }, <Icon name="sparkles" />, "Ask your notes")}
         {item({ kind: "study" }, <Icon name="study" />, "Study", dueCount ? <span className="badge" aria-label={`${dueCount} cards due`}>{dueCount}</span> : null)}
         {item({ kind: "graph" }, <Icon name="graph" />, "Knowledge graph")}
+        {item({ kind: "hub" }, <Icon name="users" />, "Study hubs")}
 
         <div className="side-section">
           <div className="side-label">Notebooks <button className="icon-btn" onClick={addNotebook} aria-label="New notebook" title="New notebook"><Icon name="plus" size={14} /></button></div>

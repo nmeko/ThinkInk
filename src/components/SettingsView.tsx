@@ -1,5 +1,6 @@
 import { useState } from "react"
-import { exportAll, importAll } from "../lib/db"
+import { importAll } from "../lib/db"
+import { downloadBackup } from "../lib/backup"
 import * as gemini from "../lib/ai/gemini"
 import { toast } from "../lib/toast"
 import { Icon } from "./Icon"
@@ -16,13 +17,7 @@ export function SettingsView() {
     catch (e) { setStatus(`⚠️ ${(e as Error).message}`) }
   }
 
-  const backup = async () => {
-    const data = await exportAll()
-    const blob = new Blob([JSON.stringify(data)], { type: "application/json" })
-    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: `thinkink-backup-${new Date().toISOString().slice(0, 10)}.json` })
-    a.click(); URL.revokeObjectURL(a.href)
-    toast(`Backed up ${data.notes.length} notes.`)
-  }
+  const backup = () => downloadBackup()
   const restore = () => {
     const input = Object.assign(document.createElement("input"), { type: "file", accept: "application/json,.json" })
     input.onchange = async () => {
@@ -36,7 +31,7 @@ export function SettingsView() {
 
   return (
     <div className="view"><div className="view-inner" style={{ display: "grid", gap: 18 }}>
-      <div><h1>Settings & backup</h1><p className="lead">Your notes live privately in this browser. Nothing is uploaded unless you use a Gemini key or share a link.</p></div>
+      <div><h1>Settings & backup</h1><p className="lead">Your notes live privately in this browser. Nothing leaves this device unless you use one of the features listed under Privacy.</p></div>
 
       <section className="card" style={{ display: "grid", gap: 10 }}>
         <h2 style={{ margin: 0, fontSize: 18 }}>AI</h2>
@@ -61,6 +56,18 @@ export function SettingsView() {
         <p className="notice" style={{ margin: 0 }}>Clearing your browser's site data deletes notes stored here, so download a backup now and then.</p>
       </section>
 
+
+      <section className="card" style={{ display: "grid", gap: 8 }}>
+        <h2 style={{ margin: 0, fontSize: 18 }}>Privacy</h2>
+        <p style={{ margin: 0 }}>ThinkInk has no accounts, ads or tracking. Your notes, drawings, recordings and flashcards are stored only in this browser. Data leaves your device only in these cases, and only when you use the feature:</p>
+        <ul style={{ margin: 0, paddingLeft: "1.2em", display: "grid", gap: 4 }}>
+          <li><strong>Gemini key (optional):</strong> the text (or photo) you ask about is sent to Google's Gemini API.</li>
+          <li><strong>Study hubs (optional):</strong> what you post is encrypted on your device first; the hub server (Supabase) stores only scrambled data plus an anonymous member id. Only people with the invite link can read it.</li>
+          <li><strong>Share links:</strong> the note travels inside the link itself; no server stores it.</li>
+          <li><strong>Sources:</strong> only your search words go to Wikipedia and OpenAlex.</li>
+          <li><strong>On-device AI and photo reading:</strong> the AI models and reading files download once from Hugging Face and jsDelivr; your notes are processed on this device and never sent.</li>
+        </ul>
+      </section>
       <section className="card" style={{ display: "grid", gap: 8 }}>
         <h2 style={{ margin: 0, fontSize: 18 }}>Keyboard shortcuts</h2>
         {[["Ctrl/⌘ K", "Search & jump anywhere"], ["Ctrl/⌘ Alt N", "New note"], ["[[ ]]", "Link to another note"], ["Ctrl/⌘ B · I · U", "Bold · italic · underline"], ["Space, 1–4", "Flip and grade flashcards"]].map(([k, d]) => (

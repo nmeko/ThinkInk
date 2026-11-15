@@ -212,19 +212,42 @@ export function cardQuiz(cards: Card[], count = 8): QuizQ[] {
 
 function CardList({ cards, noteOf }: { cards: Card[]; noteOf: Map<string, Note> }) {
   const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState<string | null>(null)
+  const [draft, setDraft] = useState({ front: "", back: "" })
+  const save = async (id: string) => {
+    if (!draft.front.trim() || !draft.back.trim()) return toast("A card needs a question and an answer.")
+    await db.cards.update(id, { front: draft.front.trim(), back: draft.back.trim() })
+    setEditing(null)
+  }
   return (
     <details className="card" style={{ marginTop: 24 }} open={open} onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}>
-      <summary style={{ cursor: "pointer", fontWeight: 600 }}>Manage flashcards ({cards.length})</summary>
+      <summary style={{ cursor: "pointer", fontWeight: 600 }}>Check and edit flashcards ({cards.length})</summary>
       {open && (
         <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
           {cards.map((c) => (
             <div key={c.id} className="row" style={{ borderTop: "1px solid var(--line)", paddingTop: 8, alignItems: "flex-start" }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 600 }}>{c.front}</div>
-                <div style={{ color: "var(--muted)", fontSize: 14 }}>{c.back}</div>
-                <div style={{ fontSize: 12, color: "var(--muted)" }}>{displayTitle(noteOf.get(c.noteId) ?? { title: "", text: "" })} · next review {new Date(c.due).toLocaleDateString()}</div>
-              </div>
-              <button className="icon-btn" onClick={() => db.cards.delete(c.id)} aria-label="Delete flashcard"><Icon name="trash" /></button>
+              {editing === c.id ? (
+                <div style={{ flex: 1, minWidth: 0, display: "grid", gap: 6 }}>
+                  <label className="field">Question<textarea className="input" rows={2} value={draft.front} onChange={(e) => setDraft({ ...draft, front: e.target.value })} /></label>
+                  <label className="field">Answer<textarea className="input" rows={2} value={draft.back} onChange={(e) => setDraft({ ...draft, back: e.target.value })} /></label>
+                  <div className="row">
+                    <button className="btn btn-primary" onClick={() => save(c.id)}><Icon name="check" /> Save</button>
+                    <button className="btn btn-ghost" onClick={() => setEditing(null)}>Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600 }}>{c.front}</div>
+                  <div style={{ color: "var(--muted)", fontSize: 14 }}>{c.back}</div>
+                  <div style={{ fontSize: 12, color: "var(--muted)" }}>{displayTitle(noteOf.get(c.noteId) ?? { title: "", text: "" })} · next review {new Date(c.due).toLocaleDateString()}</div>
+                </div>
+              )}
+              {editing !== c.id && (
+                <>
+                  <button className="icon-btn" onClick={() => { setEditing(c.id); setDraft({ front: c.front, back: c.back }) }} aria-label={`Edit flashcard: ${c.front}`}><Icon name="pen" /></button>
+                  <button className="icon-btn" onClick={() => db.cards.delete(c.id)} aria-label={`Delete flashcard: ${c.front}`}><Icon name="trash" /></button>
+                </>
+              )}
             </div>
           ))}
         </div>

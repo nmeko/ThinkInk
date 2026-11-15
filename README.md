@@ -16,6 +16,8 @@
 | **Find anything** | Instant search across titles, tags, text and lecture transcripts, plus a command palette (`Ctrl/⌘ K`). |
 | **Templates** | Cornell lecture notes, study guide, meeting notes and daily notes. |
 | **Draw** | Sketch or highlight on top of any note with a pressure-sensitive pen (works with a stylus or Apple Pencil). |
+| **Import anything** | PDFs, PowerPoint slides (with speaker notes), Word, Markdown, HTML, Evernote (.enex) and Notion/Obsidian export zips. Take a **photo of handwritten or printed notes** and get editable text. |
+| **Images** | Paste, drop or insert images and resize them (drag a corner, or S / M / L / Full). |
 | **Share & export** | Send a note as a link (the note travels inside the link, no server involved), export Markdown, print or save as PDF, and back up everything to one file. |
 | **Works anywhere** | Phone, tablet and desktop layouts, dark mode, installable as an app (PWA). |
 
@@ -24,7 +26,11 @@ Popular note apps each do one of these well. ThinkInk puts them together:
 
 - **Lecture Sync**: press Record and keep typing. Every line remembers the moment you wrote it, so tapping ▶ next to a line plays that part of the lecture. ThinkInk can also transcribe the recording into searchable text, on your device.
 - **Ask your notes**: ask a question in plain words. ThinkInk searches by *meaning*, not exact keywords, shows the best matching passages and, with a Gemini key, writes an answer that cites which notes it came from.
-- **Notes become flashcards**: lines like `Term: definition` or `Q:` / `A:` turn into flashcards automatically. A spaced-repetition scheduler (SM-2, the method behind Anki) brings each card back just before you'd forget it. Practice quizzes are built from the same cards.
+- **Explain it simply, or in detail**: one tap turns a note, an imported lecture or a slide deck into a plain-words explanation for someone with no background, or a detailed study guide with key terms and self-check questions.
+- **Flashcards you control**: draft cards from a note, ask for exactly the cards you want ("12 cards on the steps of mitosis"), or write your own, then check and edit every question and answer before saving. A spaced-repetition scheduler (SM-2, the method behind Anki) brings each card back just before you'd forget it, and practice quizzes are built from the same cards.
+- **Diagrams, graphs and pictures**: flowcharts, cycles, mind maps and timelines; graphs of formulas like `2x^2 - 3`; bar charts from your numbers; or describe a picture and Gemini draws it. Everything goes into the note as an image.
+- **Trusted sources**: a Sources panel finds Wikipedia articles, free peer-reviewed research (OpenAlex) and lessons and videos (Khan Academy, Crash Course, MIT OpenCourseWare), and adds citations to your note.
+- **Study hubs**: share notes and messages with a class or study group through an invite link. Hubs are **end-to-end encrypted**: the server stores only scrambled data, and the key never leaves your members' browsers. The creator can lock the hub and remove members.
 - **Linked thinking**: type `[[Another note]]` to link notes (or create one). Every note shows what links to it, and the knowledge graph shows how your ideas connect.
 - **Private by default**: notes are stored on your device (IndexedDB). The built-in AI models run in your browser, so your notes never leave it unless you choose to use Gemini or share a link.
 
@@ -42,8 +48,16 @@ The on-device models ([all-MiniLM-L6-v2](https://huggingface.co/Xenova/all-MiniL
 
 ## Privacy
 
+ThinkInk has no accounts, ads or tracking, and it loads no third-party fonts or scripts. A strict Content Security Policy limits which services the page can ever contact.
+
 - Notes, drawings, recordings and flashcards are stored in your browser's IndexedDB. Clearing site data deletes them, so use **Settings → Download backup** now and then.
-- Nothing is sent anywhere unless you (a) use a Gemini key, which sends the text of the notes involved to Google's Gemini API, or (b) share a link, which contains the note itself.
+- Nothing leaves your device unless you use one of these features:
+  - **a Gemini key**, which sends the text (or photo) you ask about to Google's Gemini API;
+  - **a share link**, which contains the note itself;
+  - **a study hub**, which stores your posts encrypted on Supabase together with an anonymous member id (no email);
+  - **Sources**, which sends only your search words to Wikipedia and OpenAlex.
+- The on-device AI models and photo-reading files download once from Hugging Face and jsDelivr; your notes are processed on your device.
+- ThinkInk warns you when it looks like you're in a private window (where everything is erased on close) and asks the browser to keep your data.
 - Shared links are validated before anything is saved: only known content types are rendered and malformed drawings are dropped.
 
 ## Run it locally
@@ -67,7 +81,7 @@ Pushing to `main` runs the checks and publishes `dist/` to GitHub Pages (`.githu
 
 ## How it's built
 
-React 19 + TypeScript + Vite · [TipTap](https://tiptap.dev) editor · [Dexie](https://dexie.org) (IndexedDB) · [Transformers.js](https://huggingface.co/docs/transformers.js) in a Web Worker · d3-force graph · lz-string share links.
+React 19 + TypeScript + Vite · [TipTap](https://tiptap.dev) editor · [Dexie](https://dexie.org) (IndexedDB) · [Transformers.js](https://huggingface.co/docs/transformers.js) in a Web Worker · PDF.js, JSZip, Mermaid, Tesseract.js · DOMPurify · Supabase · d3-force graph · lz-string share links.
 
 ```
 src/
@@ -76,9 +90,16 @@ src/
   lib/srs.ts         spaced-repetition scheduler
   lib/flashcards.ts  turns note patterns into cards
   lib/share.ts       share links (encode + validate)
+  lib/importers.ts   PDF, PowerPoint, Word, Markdown, HTML, Evernote and zip imports
+  lib/markdown.ts    the one place HTML is cleaned before it can reach a note
+  lib/visuals.ts     formula parser, graphs, charts, diagrams (always saved as PNG)
+  lib/hub.ts         study hubs on Supabase; lib/hubCrypto.ts encrypts them
+  supabase/          the hub tables and their security rules
   editor/            [[wiki links]] and Lecture Sync timestamps
   components/        the app's screens
 ```
+
+**Study hubs backend:** a free [Supabase](https://supabase.com) project. To use your own: create a project, turn on *Authentication → Sign In / Providers → Allow anonymous sign-ins*, run [`supabase/schema.sql`](supabase/schema.sql) in the SQL Editor, and set `VITE_SUPABASE_URL` and `VITE_SUPABASE_KEY` (the publishable key) when building. The table rules in that file decide who can read and write what; the publishable key is meant to be public.
 
 **Adding accounts or sync later:** every read and write goes through `src/lib/db.ts`. To sync with a server or cloud database, implement the same functions there against your API; the screens don't change.
 

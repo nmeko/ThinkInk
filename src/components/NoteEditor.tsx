@@ -7,17 +7,19 @@ import Highlight from "@tiptap/extension-highlight"
 import { TaskList } from "@tiptap/extension-task-list"
 import { TaskItem } from "@tiptap/extension-task-item"
 import { useLiveQuery } from "dexie-react-hooks"
-import { db, updateNote, trashNote, saveBlob, getBlob, newId, type Note, type Notebook, type Stroke } from "../lib/db"
+import { db, updateNote, trashNote, saveBlob, getBlob, type Note, type Notebook, type Stroke } from "../lib/db"
 import { WikiLinks, Timestamps } from "../editor/extensions"
 import { InkLayer, type InkTool } from "./InkLayer"
 import { Icon } from "./Icon"
 import { toast } from "../lib/toast"
 import { displayTitle, toMarkdown } from "../lib/text"
 import { encodeShare, shareUrl, MAX_LINK_LENGTH } from "../lib/share"
-import { extractCards } from "../lib/flashcards"
-import { newSchedule } from "../lib/srs"
 import { extractiveSummary, relatedNotes, transcribe } from "../lib/ai/local"
 import * as gemini from "../lib/ai/gemini"
+import { markdownToHtml } from "../lib/markdown"
+import { CardBuilder } from "./CardBuilder"
+import { CreateVisual } from "./CreateVisual"
+import { SourcesPanel } from "./SourcesPanel"
 
 export const NOTE_COLORS = ["#e03131", "#f08c00", "#ffd43b", "#2f9e44", "#1c7ed6", "#7048e8", "#c2255c"]
 const INK_COLORS = ["#1d2433", "#2f4ac0", "#e03131", "#2f9e44", "#f08c00", "#ffd43b"]
@@ -50,12 +52,14 @@ function LoadedEditor({ note, notes, notebooks, onOpenTitle, onOpenNote, onBack 
   const [tool, setTool] = useState<InkTool>("pen")
   const [inkColor, setInkColor] = useState(INK_COLORS[0])
   const [menu, setMenu] = useState(false)
+  const [panel, setPanel] = useState<"visual" | "sources" | null>(null)
 
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ link: { openOnClick: false, autolink: true } }),
       Highlight,
-      Image.configure({ allowBase64: true }),
+      // Drag a corner to resize; the toolbar's size buttons do the same from the keyboard.
+      Image.configure({ allowBase64: true, resize: { enabled: true, minWidth: 60, minHeight: 40, alwaysPreserveAspectRatio: true } }),
       TaskList,
       TaskItem.configure({ nested: true }),
       Placeholder.configure({ placeholder: "Start writing… Type [[ to link a note, or press Record to sync with a lecture." }),
@@ -121,6 +125,8 @@ function LoadedEditor({ note, notes, notebooks, onOpenTitle, onOpenNote, onBack 
         <button className="icon-btn" aria-pressed={note.pinned} onClick={() => updateNote(note.id, { pinned: !note.pinned })} aria-label={note.pinned ? "Unpin" : "Pin to top"} title={note.pinned ? "Unpin" : "Pin to top"}><Icon name="pin" /></button>
         <button className="icon-btn" aria-pressed={inkOn} onClick={() => setInkOn(!inkOn)} aria-label="Draw on this note" title="Draw (handwriting & sketches)"><Icon name="pen" /></button>
         <Recorder note={note} recStart={recStart} />
+        <button className="btn btn-ghost" onClick={() => setPanel("visual")} title="Diagrams, graphs, charts and pictures"><Icon name="shapes" /> <span className="hide-sm">Create</span></button>
+        <button className="btn btn-ghost" onClick={() => setPanel("sources")} title="Trusted reading, research and videos"><Icon name="library" /> <span className="hide-sm">Sources</span></button>
         <span className="spacer" />
         <SaveState updatedAt={note.updatedAt} />
         <button className="icon-btn" onClick={share} aria-label="Copy share link" title="Share by link"><Icon name="share" /></button>
@@ -136,6 +142,20 @@ function LoadedEditor({ note, notes, notebooks, onOpenTitle, onOpenNote, onBack 
         </div>
       </div>
       {editor && <Toolbar editor={editor} />}
+      {panel === "visual" && (
+        <CreateVisual
+          context={editor?.getText() ?? note.text}
+          onClose={() => setPanel(null)}
+          onInsert={(src, alt) => { editor?.chain().focus().setImage({ src, alt }).run(); toast("Added to your note. Drag a corner to resize it.") }}
+        />
+      )}
+      {panel === "sources" && (
+        <SourcesPanel
+          initial={displayTitle(note) === "Untitled" ? "" : displayTitle(note)}
+          onClose={() => setPanel(null)}
+          onCite={(s) => addSource(editor, s)}
+        />
+      )}
       {inkOn && (
         <div className="ink-tools" role="toolbar" aria-label="Drawing tools">
           {(["pen", "highlighter", "eraser"] as InkTool[]).map((t) => (
@@ -237,6 +257,23 @@ function Toolbar({ editor }: { editor: Editor }) {
         }
         input.click()
       }, "Insert image", <Icon name="image" size={16} />)}
+      {editor.isActive("image") && (
+        <span className="img-sizes" role="group" aria-label="Image size">
+          {([["S", 0.3], ["M", 0.5], ["L", 0.75], ["Full", 1]] as const).map(([label, frac]) => (
+            <button key={label} className="icon-btn" onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                const width = Math.round(editor.view.dom.clientWidth * frac)
+                const pos = editor.state.selection.from
+                c().updateAttributes("image", { width, height: null }).setNodeSelection(pos).run()
+                // The resizable image view only redraws on drag, so apply the new size to it directly too.
+                const dom = editor.view.nodeDOM(pos) as HTMLElement | null
+                const img = dom?.tagName === "IMG" ? dom : dom?.querySelector("img")
+                if (img) { img.style.width = `${width}px`; img.style.height = "auto" }
+              }}
+              aria-label={`Image size ${label === "Full" ? "full width" : label}`} title={`Image size: ${label}`}>{label}</button>
+          ))}
+        </span>
+      )}
     </div>
   )
 }
@@ -325,7 +362,8 @@ export const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s %
 
 /** Panels under the note: AI tools, transcript, backlinks and related notes. */
 function Under({ note, notes, editor, onOpenNote }: { note: Note; notes: Note[]; editor: Editor | null; onOpenNote: (id: string) => void }) {
-  const [summary, setSummary] = useState<string | string[] | null>(null)
+  const [summary, setSummary] = useState<{ style: gemini.SummaryStyle; html?: string; bullets?: string[] } | null>(null)
+  const [building, setBuilding] = useState(false)
   const [busy, setBusy] = useState<string | null>(null)
   const [pct, setPct] = useState(0)
   const [related, setRelated] = useState<Note[] | null>(null)
@@ -339,16 +377,10 @@ function Under({ note, notes, editor, onOpenNote }: { note: Note; notes: Note[];
   }
   const text = () => (editor ? editor.getText({ blockSeparator: "\n" }) : note.text)
 
-  const summarize = () => run("Summarizing…", async () => {
-    setSummary(gemini.hasKey() ? await gemini.summarize(note.title, text()) : extractiveSummary(text()))
-  })
-  const makeCards = () => run("Making flashcards…", async () => {
-    const headings = headingSections(editor)
-    const drafts = gemini.hasKey() ? await gemini.makeCards(text()) : extractCards(text(), headings)
-    if (!drafts.length) return toast("No flashcard material found yet. Try 'Term: definition' lines or Q:/A: pairs.")
-    const now = Date.now()
-    await db.cards.bulkAdd(drafts.map((d) => ({ id: newId(), noteId: note.id, ...d, ...newSchedule(now), createdAt: now })))
-    toast(`${drafts.length} flashcards added. Review them in Study.`)
+  const summarize = (style: gemini.SummaryStyle) => run(style === "simple" ? "Writing a simple explanation…" : "Writing a detailed study guide…", async () => {
+    setSummary(gemini.hasKey()
+      ? { style, html: markdownToHtml(await gemini.summarize(note.title, text(), style)) }
+      : { style, bullets: extractiveSummary(text(), style === "simple" ? 5 : 10) })
   })
   const doTranscribe = () => run("Transcribing on your device…", async () => {
     const blob = note.audioId ? await getBlob(note.audioId) : null
@@ -365,8 +397,9 @@ function Under({ note, notes, editor, onOpenNote }: { note: Note; notes: Note[];
   return (
     <div className="under no-print">
       <div className="row">
-        <button className="btn" onClick={summarize} disabled={!!busy}><Icon name="sparkles" /> Summarize</button>
-        <button className="btn" onClick={makeCards} disabled={!!busy}><Icon name="study" /> Make flashcards{cardCount ? ` (${cardCount})` : ""}</button>
+        <button className="btn" onClick={() => summarize("simple")} disabled={!!busy} title="Plain words, no background needed"><Icon name="sparkles" /> Explain simply</button>
+        <button className="btn btn-ghost" onClick={() => summarize("detailed")} disabled={!!busy} title="Full study guide with key terms and self-check questions"><Icon name="book" /> Detailed study guide</button>
+        <button className="btn" onClick={() => setBuilding(true)} disabled={!!busy}><Icon name="study" /> Make flashcards{cardCount ? ` (${cardCount})` : ""}</button>
         {note.audioId && <button className="btn" onClick={doTranscribe} disabled={!!busy}><Icon name="mic" /> {note.transcript.length ? "Re-transcribe" : "Transcribe recording"}</button>}
         <button className="btn btn-ghost" onClick={findRelated} disabled={!!busy}><Icon name="graph" /> Related notes</button>
       </div>
@@ -379,15 +412,26 @@ function Under({ note, notes, editor, onOpenNote }: { note: Note; notes: Note[];
       {summary && (
         <div className="ai-box">
           <div className="row" style={{ justifyContent: "space-between" }}>
-            <strong>Summary</strong>
+            <strong>{summary.style === "simple" ? "In plain words" : "Detailed study guide"}</strong>
             <button className="icon-btn" onClick={() => setSummary(null)} aria-label="Close summary"><Icon name="x" /></button>
           </div>
-          {Array.isArray(summary)
-            ? <ul>{summary.map((s, i) => <li key={i}>{s}</li>)}</ul>
-            : <div style={{ whiteSpace: "pre-wrap", marginTop: 6 }}>{summary}</div>}
-          {!gemini.hasKey() && <p style={{ fontSize: 12, color: "var(--muted)", margin: "8px 0 0" }}>Key sentences picked on your device. Add a free Gemini key in Settings for written summaries.</p>}
+          {summary.html
+            ? <div className="md" dangerouslySetInnerHTML={{ __html: summary.html }} />
+            : <ul>{summary.bullets?.map((s, i) => <li key={i}>{s}</li>)}</ul>}
+          <div className="row" style={{ marginTop: 10 }}>
+            <button className="btn btn-ghost" onClick={() => summarize(summary.style === "simple" ? "detailed" : "simple")} disabled={!!busy}>
+              {summary.style === "simple" ? "Want more detail?" : "Make it simpler"}
+            </button>
+            <button className="btn btn-ghost" onClick={() => {
+              const html = summary.html ?? `<ul>${(summary.bullets ?? []).map((b) => `<li>${b.replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[c]!)}</li>`).join("")}</ul>`
+              editor?.chain().focus("end").insertContent(`<h2>${summary.style === "simple" ? "In plain words" : "Study guide"}</h2>${html}`).run()
+              toast("Added to the end of this note.")
+            }}><Icon name="plus" /> Add to note</button>
+          </div>
+          {!gemini.hasKey() && <p style={{ fontSize: 12, color: "var(--muted)", margin: "8px 0 0" }}>These are the key sentences, picked on your device. For explanations written in plain words, add a free Gemini key in Settings.</p>}
         </div>
       )}
+      {building && <CardBuilder noteId={note.id} text={text()} headings={headingSections(editor)} onClose={() => setBuilding(false)} />}
       {note.transcript.length > 0 && (
         <div>
           <h4>Transcript</h4>
@@ -416,6 +460,20 @@ function Under({ note, notes, editor, onOpenNote }: { note: Note; notes: Note[];
       )}
     </div>
   )
+}
+
+/** Adds a link under a "Sources" heading at the end of the note (creating the heading once). */
+function addSource(editor: Editor | null, s: { title: string; url: string }) {
+  if (!editor) return
+  let hasHeading = false
+  editor.state.doc.forEach((n) => { if (n.type.name === "heading" && n.textContent.trim().toLowerCase() === "sources") hasHeading = true })
+  const link = { type: "text", text: s.title, marks: [{ type: "link", attrs: { href: s.url } }] }
+  const content = [
+    ...(hasHeading ? [] : [{ type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: "Sources" }] }]),
+    { type: "bulletList", content: [{ type: "listItem", content: [{ type: "paragraph", content: [link] }] }] },
+  ]
+  editor.chain().insertContentAt(editor.state.doc.content.size, content).run()
+  toast("Added to the Sources list at the end of this note.")
 }
 
 // Each heading with the text under it, for heading-based flashcards.

@@ -15,6 +15,11 @@ import { SettingsView } from "./components/SettingsView"
 import { CommandPalette } from "./components/CommandPalette"
 import { ShareImport } from "./components/ShareImport"
 import { Icon } from "./components/Icon"
+import { StorageBanner } from "./components/StorageBanner"
+import { ImportDialog } from "./components/ImportDialog"
+import { HubView } from "./components/HubView"
+import { JoinHub } from "./components/JoinHub"
+import { readInvite } from "./lib/hubCrypto"
 import { WELCOME } from "./lib/welcome"
 
 const store = {
@@ -35,7 +40,9 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [pane, setPane] = useState<"nav" | "list" | "main">("list")
   const [palette, setPalette] = useState(false)
+  const [importing, setImporting] = useState(false)
   const [shared, setShared] = useState(readShare)
+  const [invite, setInvite] = useState(() => readInvite(location.hash))
   const [message, setMessage] = useState<string | null>(null)
   const [theme, setTheme] = useState(() => store.get("thinkink-theme") ?? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"))
 
@@ -90,8 +97,9 @@ export default function App() {
 
   return (
     <>
+      <StorageBanner noteCount={notes.length} />
       <div className={`app${wide ? " wide" : ""}`} data-mobile={pane}>
-        <Sidebar view={view} setView={setView} notes={notes} notebooks={notebooks} dueCount={dueCount} onNew={(t) => newNote(t)}
+        <Sidebar view={view} setView={setView} notes={notes} notebooks={notebooks} dueCount={dueCount} onNew={(t) => newNote(t)} onImport={() => setImporting(true)}
           theme={theme} toggleTheme={() => setTheme((t) => (t === "dark" ? "light" : "dark"))} />
         {view.kind === "notes" && (
           <NoteList view={view} notes={notes} notebooks={notebooks} selectedId={selectedId} onSelect={openNote} onMenu={() => setPane("nav")} onNew={() => newNote()} />
@@ -102,6 +110,7 @@ export default function App() {
             : view.kind === "ask" ? <AskView notes={notes} onOpenNote={openNote} />
             : view.kind === "graph" ? <GraphView notes={notes} notebooks={notebooks} onOpenNote={openNote} />
             : view.kind === "settings" ? <SettingsView />
+            : view.kind === "hub" ? <HubView notes={notes} openHubId={view.id} onOpenNote={openNote} />
             : selected ? <NoteEditor noteId={selected.id} notes={notes} notebooks={notebooks} onOpenTitle={openTitle} onOpenNote={openNote} onBack={() => setPane("list")} />
             : (
               <div className="empty" style={{ margin: "auto" }}>
@@ -114,6 +123,14 @@ export default function App() {
         </main>
       </div>
       {palette && <CommandPalette notes={notes} onClose={() => setPalette(false)} onOpenNote={openNote} onNew={(t) => newNote(t)} setView={setView} />}
+      {importing && <ImportDialog notebookId={view.kind === "notes" && view.filter === "notebook" ? view.id ?? null : null} onClose={() => setImporting(false)} onOpen={openNote} />}
+      {invite && (
+        <JoinHub
+          invite={invite}
+          onClose={() => { history.replaceState(null, "", location.pathname + location.search); setInvite(null) }}
+          onJoined={(id) => { history.replaceState(null, "", location.pathname + location.search); setInvite(null); setView({ kind: "hub", id }) }}
+        />
+      )}
       {shared && <ShareImport shared={shared} onSave={saveShare} onDismiss={closeShare} />}
       {message && <div className="toast" role="status">{message}</div>}
     </>

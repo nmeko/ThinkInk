@@ -8,9 +8,14 @@
     <meta name="theme-color" content="#2f4ac0" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <link rel="manifest" href="./manifest.webmanifest" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Kalam:wght@700&display=swap" rel="stylesheet" />
+    <!--
+      Where this page may load from and talk to. Notes never leave the device except to the services
+      listed here, and only when the person uses that feature (see Settings → Privacy).
+      Gemini: optional AI · Supabase: optional study hubs (encrypted) · Wikipedia/OpenAlex: Sources search ·
+      Hugging Face: on-device AI model download · jsDelivr/naptha: on-device photo reading (OCR) files.
+    -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; media-src 'self' blob: data:; connect-src 'self' data: blob: https://generativelanguage.googleapis.com https://*.supabase.co wss://*.supabase.co https://en.wikipedia.org https://api.openalex.org https://huggingface.co https://*.huggingface.co https://*.hf.co https://cdn.jsdelivr.net https://tessdata.projectnaptha.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src 'none'" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
   </head>
   <body>
     <div id="root"></div>

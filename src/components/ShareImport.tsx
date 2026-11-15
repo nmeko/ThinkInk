@@ -6,13 +6,14 @@ import { TaskList } from "@tiptap/extension-task-list"
 import { TaskItem } from "@tiptap/extension-task-item"
 import type { SharedNote } from "../lib/share"
 import { Icon } from "./Icon"
+import { cleanHtml } from "../lib/markdown"
 
 /** Preview of a note someone shared by link; saving makes a private copy. */
 export function ShareImport({ shared, onSave, onDismiss }: { shared: SharedNote | "invalid"; onSave: () => void; onDismiss: () => void }) {
   let html = ""
   if (shared !== "invalid") {
     // generateHTML only renders known node types, so a crafted link can't inject markup.
-    try { html = generateHTML(shared.content, [StarterKit, Image, Highlight, TaskList, TaskItem]) } catch { html = "" }
+    try { html = cleanHtml(generateHTML(shared.content, [StarterKit, Image, Highlight, TaskList, TaskItem])) } catch { html = "" }
   }
   return (
     <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && onDismiss()}>
