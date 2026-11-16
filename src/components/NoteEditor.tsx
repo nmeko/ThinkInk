@@ -20,6 +20,7 @@ import { markdownToHtml } from "../lib/markdown"
 import { CardBuilder } from "./CardBuilder"
 import { IconPicker } from "./IconPicker"
 import { CreateVisual } from "./CreateVisual"
+import { SlashMenu } from "./SlashMenu"
 import { SourcesPanel } from "./SourcesPanel"
 
 export const NOTE_COLORS = ["#e03131", "#f08c00", "#ffd43b", "#2f9e44", "#1c7ed6", "#7048e8", "#c2255c"]
@@ -199,6 +200,7 @@ function LoadedEditor({ note, notes, notebooks, onOpenTitle, onOpenNote, onBack 
             </span>
           </div>
           <EditorContent editor={editor} />
+          {editor && <SlashMenu editor={editor} />}
           <InkLayer strokes={note.ink} onChange={(ink: Stroke[]) => updateNote(note.id, { ink })} active={inkOn} tool={tool} color={inkColor} size={2.5} />
           <Under note={note} notes={notes} editor={editor} onOpenNote={onOpenNote} />
         </div>

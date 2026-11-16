@@ -7,6 +7,8 @@ import { displayTitle } from "../lib/text"
 import * as gemini from "../lib/ai/gemini"
 import { toast } from "../lib/toast"
 import { Icon } from "./Icon"
+import { motion, useReducedMotion } from "motion/react"
+import { currentStreak, recordStudy } from "../lib/streak"
 
 type Mode = { kind: "home" } | { kind: "review"; scope: string } | { kind: "quiz"; scope: string }
 type QuizQ = { question: string; choices: string[]; answer: number; why?: string }
@@ -15,6 +17,7 @@ export function StudyView({ notes, notebooks, onOpenNote }: { notes: Note[]; not
   const cards = useLiveQuery(() => db.cards.toArray(), []) ?? []
   const [mode, setMode] = useState<Mode>({ kind: "home" })
   const [busy, setBusy] = useState(false)
+  const streak = currentStreak()
   const live = notes.filter((n) => !n.deletedAt)
   const noteOf = useMemo(() => new Map(live.map((n) => [n.id, n])), [live])
   const liveCards = cards.filter((c) => noteOf.has(c.noteId))
@@ -46,7 +49,7 @@ export function StudyView({ notes, notebooks, onOpenNote }: { notes: Note[]; not
   const scopes = [{ id: "all", name: "All notes", color: "var(--brand)" }, ...notebooks]
   return (
     <div className="view"><div className="view-inner">
-      <h1>Study</h1>
+      <div className="row" style={{ alignItems: "center" }}><h1 style={{ marginRight: "auto" }}>Study</h1>{streak > 0 && <span className="streak" title="Days in a row you finished a review or quiz">🔥 {streak}-day streak</span>}</div>
       <p className="lead">ThinkInk turns your notes into flashcards and schedules each review right before you'd forget it.</p>
       <div className="stats" style={{ marginBottom: 24 }}>
         <div className="card"><div className="stat">{due("all").length}</div><div style={{ color: "var(--muted)" }}>cards due now</div></div>
@@ -75,12 +78,21 @@ export function StudyView({ notes, notebooks, onOpenNote }: { notes: Note[]; not
   )
 }
 
+/** Marks today as studied and throws a little confetti (skipped for reduced motion). */
+function celebrate(still: boolean | null) {
+  recordStudy()
+  if (!still) void import("canvas-confetti").then(({ default: confetti }) => confetti({ particleCount: 90, spread: 70, origin: { y: 0.7 }, colors: ["#3346d3", "#ffe45c", "#ff9ecb", "#7ef0c0"] }))
+}
+
 function Review({ cards, noteOf, onExit, onOpenNote }: { cards: Card[]; noteOf: Map<string, Note>; onExit: () => void; onOpenNote: (id: string) => void }) {
   const [queue] = useState(() => [...cards].sort(() => Math.random() - 0.5))
   const [i, setI] = useState(0)
   const [flipped, setFlipped] = useState(false)
   const [done, setDone] = useState(0)
+  const still = useReducedMotion()
   const card = queue[i]
+  const finished = !card && done > 0
+  useEffect(() => { if (finished) celebrate(still) }, [finished, still])
 
   const grade = async (g: Grade) => {
     if (!card) return
@@ -110,12 +122,15 @@ function Review({ cards, noteOf, onExit, onOpenNote }: { cards: Card[]; noteOf: 
       <div className="progress" style={{ marginBottom: 20 }}><div style={{ width: `${(i / Math.max(queue.length, 1)) * 100}%` }} /></div>
       {card ? (
         <>
-          <div className="flash" role="button" tabIndex={0} onClick={() => setFlipped(!flipped)} aria-label={flipped ? "Answer shown" : "Show answer"}>
-            <div>
-              <div>{card.front}</div>
-              {flipped && <div className="back">{card.back}</div>}
-              {!flipped && <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 18 }}>Tap or press Space to show the answer</div>}
-            </div>
+          <div className="flip-scene">
+            <motion.div key={card.id} className="flip-card" role="button" tabIndex={0} aria-pressed={flipped}
+              aria-label={flipped ? `Answer: ${card.back}` : `Question: ${card.front}. Press to show the answer`}
+              onClick={() => setFlipped(!flipped)} onKeyDown={(e) => e.key === "Enter" && setFlipped(!flipped)}
+              initial={still ? false : { opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0, rotateY: flipped ? 180 : 0 }}
+              transition={still ? { duration: 0 } : { type: "spring", stiffness: 260, damping: 24 }}>
+              <div className="flip-face" aria-hidden={flipped}><div>{card.front}<small>Tap or press Space to flip</small></div></div>
+              <div className="flip-face back" aria-hidden={!flipped}><div>{card.back}</div></div>
+            </motion.div>
           </div>
           {flipped && (
             <div className="grades">
@@ -132,6 +147,7 @@ function Review({ cards, noteOf, onExit, onOpenNote }: { cards: Card[]; noteOf: 
         <div className="card" style={{ textAlign: "center", padding: 40 }}>
           <div style={{ fontSize: 40 }}>🎉</div>
           <h2>Session complete</h2>
+          {currentStreak() > 1 && <p><span className="streak">🔥 {currentStreak()} days in a row</span></p>}
           <p className="lead">You reviewed {done} card{done === 1 ? "" : "s"}. ThinkInk will bring each one back right before you'd forget it.</p>
           <button className="btn btn-primary" onClick={onExit}>Done</button>
         </div>
@@ -162,6 +178,9 @@ function Quiz({ scope, cards, notes, onExit }: { scope: string; cards: Card[]; n
     return () => { cancelled = true }
   }, [scope]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const still = useReducedMotion()
+  const quizDone = !!qs && i >= qs.length
+  useEffect(() => { if (quizDone) celebrate(still) }, [quizDone, still])
   if (!qs) return <div className="view"><div className="view-inner"><p className="lead">Writing your quiz…</p><div className="progress"><div style={{ width: "40%" }} /></div></div></div>
   const q = qs[i]
   return (

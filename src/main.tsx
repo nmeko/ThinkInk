@@ -7,6 +7,8 @@ import '@fontsource-variable/bricolage-grotesque'
 import './index.css'
 import App from './App.tsx'
 
+try { document.documentElement.dataset.hl = localStorage.getItem('thinkink-hl') ?? 'sun' } catch { /* storage blocked: default color */ }
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />

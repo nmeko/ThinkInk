@@ -17,11 +17,12 @@ type Props = {
   dueCount: number
   onNew: (t?: Template) => void
   onImport: () => void
+  onAbout: () => void
   theme: string
   toggleTheme: () => void
 }
 
-export function Sidebar({ view, setView, notes, notebooks, dueCount, onNew, onImport, theme, toggleTheme }: Props) {
+export function Sidebar({ view, setView, notes, notebooks, dueCount, onNew, onImport, onAbout, theme, toggleTheme }: Props) {
   const [menu, setMenu] = useState(false)
   const live = notes.filter((n) => !n.deletedAt)
   const tags = [...new Set(live.flatMap((n) => n.tags))].sort()
@@ -39,7 +40,7 @@ export function Sidebar({ view, setView, notes, notebooks, dueCount, onNew, onIm
 
   return (
     <nav className="sidebar" aria-label="Main">
-      <div className="brand"><img src="./favicon.svg" alt="" /> ThinkInk</div>
+      <button className="brand" onClick={onAbout} title="About ThinkInk"><img src="./favicon.svg" alt="" /> ThinkInk</button>
       <div className="new-btn" style={{ position: "relative" }}>
         <button className="btn btn-primary" onClick={() => onNew()}><Icon name="plus" /> New note</button>
         <button className="btn btn-primary menu-trigger" onClick={() => setMenu(!menu)} aria-label="New note from template" aria-expanded={menu}>▾</button>

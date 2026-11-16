@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
+import { AnimatePresence, motion } from "motion/react"
 import { useLiveQuery } from "dexie-react-hooks"
 import { db, createNote, type Note } from "./lib/db"
 import { decodeShare, type SharedNote } from "./lib/share"
@@ -22,6 +23,7 @@ import { JoinHub } from "./components/JoinHub"
 import { readInvite } from "./lib/hubCrypto"
 import { WELCOME } from "./lib/welcome"
 import { Inky } from "./components/Inky"
+import { Intro } from "./components/Intro"
 
 const store = {
   get: (k: string) => { try { return localStorage.getItem(k) } catch { return null } },
@@ -45,6 +47,18 @@ export default function App() {
   const [shared, setShared] = useState(readShare)
   const [invite, setInvite] = useState(() => readInvite(location.hash))
   const [message, setMessage] = useState<string | null>(null)
+  const [hidden, setHidden] = useState(() => ({ nav: store.get("thinkink-hide-nav") === "1", list: store.get("thinkink-hide-list") === "1" }))
+  const togglePane = useCallback((p: "nav" | "list" | "both") => setHidden((h) => {
+    const next = p === "both" ? (h.nav && h.list ? { nav: false, list: false } : { nav: true, list: true }) : { ...h, [p]: !h[p] }
+    store.set("thinkink-hide-nav", next.nav ? "1" : ""); store.set("thinkink-hide-list", next.list ? "1" : "")
+    return next
+  }), [])
+  const [intro, setIntro] = useState(() => !store.get("thinkink-intro"))
+  const closeIntro = (tour: boolean) => {
+    store.set("thinkink-intro", "1"); setIntro(false)
+    const welcome = notes.find((n) => !n.deletedAt && n.tags.includes("start-here"))
+    if (tour && welcome) openNote(welcome.id)
+  }
   const [theme, setTheme] = useState(() => store.get("thinkink-theme") ?? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"))
 
   useEffect(() => { document.documentElement.dataset.theme = theme; store.set("thinkink-theme", theme) }, [theme])
@@ -81,10 +95,11 @@ export default function App() {
       const mod = e.ctrlKey || e.metaKey
       if (mod && e.key.toLowerCase() === "k") { e.preventDefault(); setPalette((p) => !p) }
       if (mod && e.altKey && e.key.toLowerCase() === "n") { e.preventDefault(); newNote() }
+      if (mod && e.key === "\\") { e.preventDefault(); togglePane("both") }
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [newNote])
+  }, [newNote, togglePane])
 
   const closeShare = () => { history.replaceState(null, "", location.pathname + location.search); setShared(null) }
   const saveShare = async () => {
@@ -100,9 +115,9 @@ export default function App() {
     <>
       <div className="bg-drift" aria-hidden="true"><span /><span /><span /></div>
       <StorageBanner noteCount={notes.length} />
-      <div className={`app${wide ? " wide" : ""}`} data-mobile={pane}>
+      <div className={`app${wide ? " wide" : ""}${hidden.nav ? " no-nav" : ""}${hidden.list ? " no-list" : ""}`} data-mobile={pane}>
         <Sidebar view={view} setView={setView} notes={notes} notebooks={notebooks} dueCount={dueCount} onNew={(t) => newNote(t)} onImport={() => setImporting(true)}
-          theme={theme} toggleTheme={() => setTheme((t) => (t === "dark" ? "light" : "dark"))} />
+          onAbout={() => setIntro(true)} theme={theme} toggleTheme={() => setTheme((t) => (t === "dark" ? "light" : "dark"))} />
         {view.kind === "notes" && (
           <NoteList view={view} notes={notes} notebooks={notebooks} selectedId={selectedId} onSelect={openNote} onMenu={() => setPane("nav")} onNew={() => newNote()} />
         )}
@@ -124,6 +139,7 @@ export default function App() {
             )}
         </main>
       </div>
+      {intro && <Intro onStart={() => closeIntro(false)} onTour={() => closeIntro(true)} />}
       {palette && <CommandPalette notes={notes} onClose={() => setPalette(false)} onOpenNote={openNote} onNew={(t) => newNote(t)} setView={setView} />}
       {importing && <ImportDialog notebookId={view.kind === "notes" && view.filter === "notebook" ? view.id ?? null : null} onClose={() => setImporting(false)} onOpen={openNote} />}
       {invite && (
@@ -138,7 +154,18 @@ export default function App() {
         note={view.kind === "notes" && selected && !selected.deletedAt ? { title: displayTitle(selected), text: selected.text.slice(0, 12000) } : undefined}
         onNavigate={(a, q) => (a === "import" ? setImporting(true) : setView(a === "quiz" ? { kind: "study" } : { kind: "ask", q }))}
       />
-      {message && <div className="toast" role="status">{message}</div>}
+      <div className="pane-dock" role="group" aria-label="Panels">
+        <button className="icon-btn" data-off={hidden.nav || undefined} onClick={() => togglePane("nav")} title={`${hidden.nav ? "Show" : "Hide"} sidebar (Ctrl \\ hides both panels)`} aria-label={hidden.nav ? "Show sidebar" : "Hide sidebar"}><Icon name="sidebar" /></button>
+        {!wide && <button className="icon-btn" data-off={hidden.list || undefined} onClick={() => togglePane("list")} title={`${hidden.list ? "Show" : "Hide"} notes list`} aria-label={hidden.list ? "Show notes list" : "Hide notes list"}><Icon name="columns" /></button>}
+      </div>
+      <div role="status" aria-live="polite" className="toast-slot">
+        <AnimatePresence>
+          {message && (
+            <motion.div key={message} className="toast" initial={{ opacity: 0, y: 24, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 12 }}
+              transition={{ type: "spring", stiffness: 500, damping: 30 }}>{message}</motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </>
   )
 }

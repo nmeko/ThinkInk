@@ -5,9 +5,16 @@ import * as gemini from "../lib/ai/gemini"
 import { toast } from "../lib/toast"
 import { Icon } from "./Icon"
 
+const HIGHLIGHTERS = [["sun", "Yellow", "#ffe45c"], ["mint", "Mint", "#7ef0c0"], ["pink", "Pink", "#ff9ecb"], ["sky", "Sky blue", "#8fd3ff"], ["lilac", "Lilac", "#c9b5ff"]]
+
 export function SettingsView() {
   const [key, setKey] = useState(gemini.getKey())
   const [status, setStatus] = useState<string | null>(null)
+  const [hl, setHl] = useState(document.documentElement.dataset.hl ?? "sun")
+  const pickHl = (id: string) => {
+    setHl(id); document.documentElement.dataset.hl = id
+    try { localStorage.setItem("thinkink-hl", id) } catch { /* storage blocked */ }
+  }
 
   const saveKey = async () => {
     gemini.setKey(key)
@@ -32,6 +39,16 @@ export function SettingsView() {
   return (
     <div className="view"><div className="view-inner" style={{ display: "grid", gap: 18 }}>
       <div><h1>Settings & backup</h1><p className="lead">Your notes live privately in this browser. Nothing leaves this device unless you use one of the features listed under Privacy.</p></div>
+
+      <section className="card" style={{ display: "grid", gap: 10 }}>
+        <h2 style={{ margin: 0, fontSize: 18 }}>Highlighter color</h2>
+        <p style={{ margin: 0 }}>Used for highlights, the selected item, and Inky's cheeks.</p>
+        <div className="hl-picker" role="group" aria-label="Highlighter color">
+          {HIGHLIGHTERS.map(([id, name, color]) => (
+            <button key={id} aria-pressed={hl === id} aria-label={name} title={name} style={{ background: color }} onClick={() => pickHl(id)} />
+          ))}
+        </div>
+      </section>
 
       <section className="card" style={{ display: "grid", gap: 10 }}>
         <h2 style={{ margin: 0, fontSize: 18 }}>AI</h2>
