@@ -118,3 +118,11 @@ Return JSON: {"kind": "mermaid" | "svg", "code": "..."}.${context ? `\n\nNotes f
   if ((parsed.kind !== "mermaid" && parsed.kind !== "svg") || typeof parsed.code !== "string" || parsed.code.length > 60000) throw new Error("Gemini didn't return a usable picture. Try describing it differently.")
   return parsed
 }
+
+/** Inky's answers: break a topic down simply, using the open note when it's relevant. */
+export async function tutor(question: string, note?: { title: string; text: string }) {
+  return generate(
+    `You are Inky, a friendly study helper inside a note app. A student asks: "${question.slice(0, 1000)}".
+Break it down so someone with little background understands: short sentences, everyday words, one concrete example or analogy, and define any technical term. Use at most 200 words of Markdown (a short intro, then 3-5 bullets or numbered steps). Be accurate; if you're not sure, say so. Don't use emojis.${note ? `\n\nThe student has this note open; use it when it's relevant:\nTITLE: ${note.title}\n${note.text.slice(0, 20000)}` : ""}`,
+  )
+}

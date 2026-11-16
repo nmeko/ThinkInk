@@ -18,6 +18,7 @@ import { extractiveSummary, relatedNotes, transcribe } from "../lib/ai/local"
 import * as gemini from "../lib/ai/gemini"
 import { markdownToHtml } from "../lib/markdown"
 import { CardBuilder } from "./CardBuilder"
+import { IconPicker } from "./IconPicker"
 import { CreateVisual } from "./CreateVisual"
 import { SourcesPanel } from "./SourcesPanel"
 
@@ -98,6 +99,14 @@ function LoadedEditor({ note, notes, notebooks, onOpenTitle, onOpenNote, onBack 
     return true
   }
 
+  // Inky asks for a panel, or drops its explanation into the note.
+  useEffect(() => {
+    const onInky = (e: Event) => { const a = (e as CustomEvent<string>).detail; if (a === "visual" || a === "sources") setPanel(a) }
+    const onInsert = (e: Event) => { editor?.chain().focus("end").insertContent((e as CustomEvent<string>).detail).run(); toast("Added to the end of your note.") }
+    window.addEventListener("thinkink-inky", onInky); window.addEventListener("thinkink-insert", onInsert)
+    return () => { window.removeEventListener("thinkink-inky", onInky); window.removeEventListener("thinkink-insert", onInsert) }
+  }, [editor])
+
   const saveTitle = (t: string) => { setTitle(t); updateNote(note.id, { title: t }) }
   const addTag = (raw: string) => {
     const t = raw.trim().replace(/^#/, "").toLowerCase()
@@ -170,6 +179,8 @@ function LoadedEditor({ note, notes, notebooks, onOpenTitle, onOpenNote, onBack 
       )}
       <div className="editor-scroll">
         <div className={`page${note.audioId ? " has-audio" : ""}`} onClick={(e) => seekFromLine(e)}>
+          <div className="cover" style={{ "--cover": note.color ?? undefined } as React.CSSProperties} aria-hidden="true" />
+          <IconPicker value={note.icon} onChange={(icon) => updateNote(note.id, { icon })} />
           <input className="title-input" value={title} onChange={(e) => saveTitle(e.target.value)} placeholder="Untitled" aria-label="Note title" />
           <div className="meta-row">
             <select value={note.notebookId ?? ""} onChange={(e) => updateNote(note.id, { notebookId: e.target.value || null })} aria-label="Notebook">
@@ -382,6 +393,18 @@ function Under({ note, notes, editor, onOpenNote }: { note: Note; notes: Note[];
       ? { style, html: markdownToHtml(await gemini.summarize(note.title, text(), style)) }
       : { style, bullets: extractiveSummary(text(), style === "simple" ? 5 : 10) })
   })
+  const under = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const onInky = (e: Event) => {
+      const a = (e as CustomEvent<string>).detail
+      if (a === "explain" || a === "detailed") void summarize(a === "explain" ? "simple" : "detailed")
+      else if (a === "cards") setBuilding(true)
+      else return
+      under.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+    }
+    window.addEventListener("thinkink-inky", onInky)
+    return () => window.removeEventListener("thinkink-inky", onInky)
+  })
   const doTranscribe = () => run("Transcribing on your device…", async () => {
     const blob = note.audioId ? await getBlob(note.audioId) : null
     if (!blob) return
@@ -395,7 +418,7 @@ function Under({ note, notes, editor, onOpenNote }: { note: Note; notes: Note[];
   })
 
   return (
-    <div className="under no-print">
+    <div className="under no-print" ref={under}>
       <div className="row">
         <button className="btn" onClick={() => summarize("simple")} disabled={!!busy} title="Plain words, no background needed"><Icon name="sparkles" /> Explain simply</button>
         <button className="btn btn-ghost" onClick={() => summarize("detailed")} disabled={!!busy} title="Full study guide with key terms and self-check questions"><Icon name="book" /> Detailed study guide</button>

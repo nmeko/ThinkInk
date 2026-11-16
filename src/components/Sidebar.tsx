@@ -3,10 +3,11 @@ import { createNotebook, deleteNotebook, type Note, type Notebook } from "../lib
 import { TEMPLATES, type Template } from "../lib/templates"
 import { NOTE_COLORS } from "./NoteEditor"
 import { Icon } from "./Icon"
+import { Highlight } from "./Highlight"
 
 export type View =
   | { kind: "notes"; filter: "all" | "pinned" | "trash" | "notebook" | "tag"; id?: string }
-  | { kind: "study" } | { kind: "ask" } | { kind: "graph" } | { kind: "settings" } | { kind: "hub"; id?: string }
+  | { kind: "study" } | { kind: "ask"; q?: string } | { kind: "graph" } | { kind: "settings" } | { kind: "hub"; id?: string }
 
 type Props = {
   view: View
@@ -27,7 +28,7 @@ export function Sidebar({ view, setView, notes, notebooks, dueCount, onNew, onIm
   const is = (v: Partial<View> & { kind: string }) =>
     view.kind === v.kind && (v.kind !== "notes" || (view.kind === "notes" && view.filter === (v as { filter: string }).filter && view.id === (v as { id?: string }).id))
   const item = (v: View, icon: React.ReactNode, label: string, extra?: React.ReactNode) => (
-    <button className="nav-item" aria-current={is(v)} onClick={() => setView(v)}>{icon}<span>{label}</span>{extra}</button>
+    <button className="nav-item" aria-current={is(v)} onClick={() => setView(v)}>{is(v) && <Highlight group="nav" />}{icon}<span>{label}</span>{extra}</button>
   )
   const addNotebook = async () => {
     const name = prompt("Notebook name (for example a class: \"BIO 101\")")

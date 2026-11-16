@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import type { Note } from "../lib/db"
 import { displayTitle } from "../lib/text"
 import { semanticSearch, bestPassages } from "../lib/ai/local"
@@ -9,8 +9,8 @@ type Result = { question: string; notes: Note[]; passages: { noteId: string; tex
 
 const EXAMPLES = ["What are the main ideas from my last lecture?", "Explain the difference between mitosis and meiosis", "What do I still need to do this week?"]
 
-export function AskView({ notes, onOpenNote }: { notes: Note[]; onOpenNote: (id: string) => void }) {
-  const [q, setQ] = useState("")
+export function AskView({ notes, onOpenNote, initial }: { notes: Note[]; onOpenNote: (id: string) => void; initial?: string }) {
+  const [q, setQ] = useState(initial ?? "")
   const [busy, setBusy] = useState(false)
   const [pct, setPct] = useState(0)
   const [result, setResult] = useState<Result | null>(null)
@@ -33,6 +33,9 @@ export function AskView({ notes, onOpenNote }: { notes: Note[]; onOpenNote: (id:
       setResult({ question, notes: [], passages: [], answer: null, error: `The on-device AI couldn't load (${(e as Error).message}). Check your connection for the one-time model download.` })
     } finally { setBusy(false) }
   }
+
+  // A question handed over from Inky or the command palette runs right away.
+  useEffect(() => { if (initial) void ask(initial) }, [initial]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="view"><div className="view-inner">

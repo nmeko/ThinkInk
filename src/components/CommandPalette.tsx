@@ -20,7 +20,7 @@ export function CommandPalette({ notes, onClose, onOpenNote, onNew, setView }: {
       : [...live].sort((a, b) => b.updatedAt - a.updatedAt)).slice(0, 8)
     const actions: Item[] = [
       { id: "new", label: q ? `New note "${q}"` : "New note", icon: "plus", run: () => onNew(q || undefined) },
-      { id: "ask", label: q ? `Ask your notes: "${q}"` : "Ask your notes", icon: "sparkles", run: () => setView({ kind: "ask" }) },
+      { id: "ask", label: q ? `Ask your notes: "${q}"` : "Ask your notes", icon: "sparkles", run: () => setView({ kind: "ask", q: q || undefined }) },
       { id: "study", label: "Study flashcards", icon: "study", run: () => setView({ kind: "study" }) },
       { id: "graph", label: "Knowledge graph", icon: "graph", run: () => setView({ kind: "graph" }) },
     ]

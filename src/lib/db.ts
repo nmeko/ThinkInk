@@ -17,6 +17,7 @@ export type Note = {
   links: string[] // titles referenced with [[...]]
   tags: string[]
   color: string | null
+  icon?: string // emoji shown on the note's card and header
   pinned: boolean
   ink: Stroke[] // drawing layer
   audioId: string | null

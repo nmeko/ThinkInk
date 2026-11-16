@@ -3,6 +3,7 @@ import { emptyTrash, restoreNote, deleteNoteForever, type Note, type Notebook } 
 import { displayTitle, keywordScore, snippet } from "../lib/text"
 import type { View } from "./Sidebar"
 import { Icon } from "./Icon"
+import { motion, useReducedMotion } from "motion/react"
 
 type Props = {
   view: Extract<View, { kind: "notes" }>
@@ -17,6 +18,7 @@ type Props = {
 type Sort = "updated" | "created" | "title"
 
 export function NoteList({ view, notes, notebooks, selectedId, onSelect, onMenu, onNew }: Props) {
+  const still = useReducedMotion()
   const [query, setQuery] = useState("")
   const [sort, setSort] = useState<Sort>("updated")
   const nbName = (id: string | null) => notebooks.find((n) => n.id === id)?.name
@@ -75,11 +77,11 @@ export function NoteList({ view, notes, notebooks, selectedId, onSelect, onMenu,
               : <><h3>No notes here yet</h3><button className="btn btn-primary" onClick={onNew}><Icon name="plus" /> New note</button></>}
           </div>
         )}
-        {shown.map((n) => (
-          <div key={n.id} style={{ display: "grid" }}>
+        {shown.map((n, k) => (
+          <motion.div key={n.id} style={{ display: "grid" }} layout={!still} initial={still ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25, delay: Math.min(k, 8) * 0.03 }}>
             <button className="note-card" aria-current={n.id === selectedId} onClick={() => onSelect(n.id)}>
               {n.color && <span className="color-bar" style={{ background: n.color }} />}
-              <h3>{n.pinned && <Icon name="pin" size={13} />}<span>{displayTitle(n)}</span></h3>
+              <h3>{n.icon && <span className="note-icon" aria-hidden="true">{n.icon}</span>}{n.pinned && <Icon name="pin" size={13} />}<span>{displayTitle(n)}</span></h3>
               <p>{query ? snippet(n.text, query) : n.text.split("\n").slice(n.title ? 0 : 1).join(" ").slice(0, 140) || "No text yet"}</p>
               <div className="note-meta">
                 <span>{new Date(n.updatedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
@@ -95,7 +97,7 @@ export function NoteList({ view, notes, notebooks, selectedId, onSelect, onMenu,
                 <button className="btn btn-ghost btn-danger" onClick={() => confirm("Delete this note forever?") && deleteNoteForever(n.id)}>Delete forever</button>
               </div>
             )}
-          </div>
+          </motion.div>
         ))}
       </div>
     </section>

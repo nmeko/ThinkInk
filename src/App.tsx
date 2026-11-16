@@ -21,6 +21,7 @@ import { HubView } from "./components/HubView"
 import { JoinHub } from "./components/JoinHub"
 import { readInvite } from "./lib/hubCrypto"
 import { WELCOME } from "./lib/welcome"
+import { Inky } from "./components/Inky"
 
 const store = {
   get: (k: string) => { try { return localStorage.getItem(k) } catch { return null } },
@@ -97,6 +98,7 @@ export default function App() {
 
   return (
     <>
+      <div className="bg-drift" aria-hidden="true"><span /><span /><span /></div>
       <StorageBanner noteCount={notes.length} />
       <div className={`app${wide ? " wide" : ""}`} data-mobile={pane}>
         <Sidebar view={view} setView={setView} notes={notes} notebooks={notebooks} dueCount={dueCount} onNew={(t) => newNote(t)} onImport={() => setImporting(true)}
@@ -107,7 +109,7 @@ export default function App() {
         <main className="main-pane">
           {wide && <button className="icon-btn mobile-only" style={{ margin: 8 }} onClick={() => setPane("nav")} aria-label="Open menu"><Icon name="menu" /></button>}
           {view.kind === "study" ? <StudyView notes={notes} notebooks={notebooks} onOpenNote={openNote} />
-            : view.kind === "ask" ? <AskView notes={notes} onOpenNote={openNote} />
+            : view.kind === "ask" ? <AskView key={view.q ?? ""} notes={notes} onOpenNote={openNote} initial={view.q} />
             : view.kind === "graph" ? <GraphView notes={notes} notebooks={notebooks} onOpenNote={openNote} />
             : view.kind === "settings" ? <SettingsView />
             : view.kind === "hub" ? <HubView notes={notes} openHubId={view.id} onOpenNote={openNote} />
@@ -132,6 +134,10 @@ export default function App() {
         />
       )}
       {shared && <ShareImport shared={shared} onSave={saveShare} onDismiss={closeShare} />}
+      <Inky
+        note={view.kind === "notes" && selected && !selected.deletedAt ? { title: displayTitle(selected), text: selected.text.slice(0, 12000) } : undefined}
+        onNavigate={(a, q) => (a === "import" ? setImporting(true) : setView(a === "quiz" ? { kind: "study" } : { kind: "ask", q }))}
+      />
       {message && <div className="toast" role="status">{message}</div>}
     </>
   )
