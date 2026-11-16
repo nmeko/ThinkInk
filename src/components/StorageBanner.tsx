@@ -24,9 +24,9 @@ export function StorageBanner({ noteCount }: { noteCount: number }) {
       <p>
         {check.kind === "private"
           ? <><strong>This looks like a private or incognito window.</strong> Notes made here are erased when you close it. Download a backup or export your notes before you go.</>
-          : <>Your notes are saved only in this browser on this device, and clearing your browsing data deletes them. Download a backup now and then.</>}
+          : <>Your notes are saved only in this browser. Clearing browsing data deletes them, so download a backup now and then.</>}
       </p>
-      <button className="btn btn-primary" onClick={() => void downloadBackup()}><Icon name="download" /> Download backup</button>
+      <button className="btn btn-primary" onClick={() => void downloadBackup()}><Icon name="download" /> Back up</button>
       <button className="btn btn-ghost" onClick={hide}>{check.kind === "private" ? "I understand" : "Remind me later"}</button>
     </div>
   )

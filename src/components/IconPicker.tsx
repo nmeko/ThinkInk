@@ -19,8 +19,8 @@ export function IconPicker({ value, onChange }: { value?: string; onChange: (ico
   }, [open])
   return (
     <div style={{ position: "relative" }}>
-      <button className="icon-btn-big" onClick={() => setOpen(!open)} aria-expanded={open} aria-label={value ? `Note icon ${value}. Change icon` : "Add an icon"}>
-        {value ?? <span style={{ fontSize: 28, opacity: .55 }} aria-hidden="true">＋</span>}
+      <button className={`icon-btn-big${value ? "" : " empty"}`} onClick={() => setOpen(!open)} aria-expanded={open} aria-label={value ? `Note icon ${value}. Change icon` : "Add an icon"}>
+        {value ?? <span aria-hidden="true">☺ Add icon</span>}
       </button>
       {open && (
         <div ref={box} className="emoji-pop" role="listbox" aria-label="Choose an icon">

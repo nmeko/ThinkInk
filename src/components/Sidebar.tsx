@@ -18,11 +18,12 @@ type Props = {
   onNew: (t?: Template) => void
   onImport: () => void
   onAbout: () => void
+  onHide: () => void
   theme: string
   toggleTheme: () => void
 }
 
-export function Sidebar({ view, setView, notes, notebooks, dueCount, onNew, onImport, onAbout, theme, toggleTheme }: Props) {
+export function Sidebar({ view, setView, notes, notebooks, dueCount, onNew, onImport, onAbout, onHide, theme, toggleTheme }: Props) {
   const [menu, setMenu] = useState(false)
   const live = notes.filter((n) => !n.deletedAt)
   const tags = [...new Set(live.flatMap((n) => n.tags))].sort()
@@ -40,7 +41,10 @@ export function Sidebar({ view, setView, notes, notebooks, dueCount, onNew, onIm
 
   return (
     <nav className="sidebar" aria-label="Main">
-      <button className="brand" onClick={onAbout} title="About ThinkInk"><img src="./favicon.svg" alt="" /> ThinkInk</button>
+      <div className="brand-row">
+        <button className="brand" onClick={onAbout} title="About ThinkInk"><img src="./favicon.svg" alt="" /> ThinkInk</button>
+        <button className="icon-btn desktop-only" onClick={onHide} aria-label="Hide sidebar" title="Hide sidebar (Ctrl+\\ hides both panels)"><Icon name="sidebar" /></button>
+      </div>
       <div className="new-btn" style={{ position: "relative" }}>
         <button className="btn btn-primary" onClick={() => onNew()}><Icon name="plus" /> New note</button>
         <button className="btn btn-primary menu-trigger" onClick={() => setMenu(!menu)} aria-label="New note from template" aria-expanded={menu}>▾</button>

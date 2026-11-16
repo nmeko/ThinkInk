@@ -180,7 +180,7 @@ function LoadedEditor({ note, notes, notebooks, onOpenTitle, onOpenNote, onBack 
       )}
       <div className="editor-scroll">
         <div className={`page${note.audioId ? " has-audio" : ""}`} onClick={(e) => seekFromLine(e)}>
-          <div className="cover" style={{ "--cover": note.color ?? undefined } as React.CSSProperties} aria-hidden="true" />
+          {note.color && <div className="cover" style={{ "--cover": note.color } as React.CSSProperties} aria-hidden="true" />}
           <IconPicker value={note.icon} onChange={(icon) => updateNote(note.id, { icon })} />
           <input className="title-input" value={title} onChange={(e) => saveTitle(e.target.value)} placeholder="Untitled" aria-label="Note title" />
           <div className="meta-row">
@@ -217,7 +217,7 @@ function seekFromLine(e: React.MouseEvent) {
 }
 
 function SaveState({ updatedAt }: { updatedAt: number }) {
-  return <span style={{ fontSize: 12, color: "var(--muted)" }} title={new Date(updatedAt).toLocaleString()}>Saved</span>
+  return <span className="save-state" style={{ fontSize: 12, color: "var(--muted)" }} title={new Date(updatedAt).toLocaleString()}>Saved</span>
 }
 
 function Toolbar({ editor }: { editor: Editor }) {
@@ -365,7 +365,7 @@ function Recorder({ note, recStart }: { note: Note; recStart: React.MutableRefOb
   )
   return (
     <span className="row" style={{ gap: 8, flex: url ? "1 1 260px" : undefined }}>
-      <button className="btn btn-ghost" onClick={start} title="Record a lecture; your notes get timestamps"><Icon name="mic" /> {url ? "Re-record" : "Record"}</button>
+      <button className="btn btn-ghost" onClick={start} title="Record a lecture; your notes get timestamps" aria-label={url ? "Re-record lecture" : "Record lecture"}><Icon name="mic" /> <span className="hide-sm">{url ? "Re-record" : "Record"}</span></button>
       {url && <audio ref={audio} src={url} controls onTimeUpdate={onTime} style={{ height: 32, flex: 1, minWidth: 160 }} aria-label="Lecture recording" />}
     </span>
   )

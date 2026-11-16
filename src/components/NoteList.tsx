@@ -13,11 +13,12 @@ type Props = {
   onSelect: (id: string) => void
   onMenu: () => void
   onNew: () => void
+  onHide: () => void
 }
 
 type Sort = "updated" | "created" | "title"
 
-export function NoteList({ view, notes, notebooks, selectedId, onSelect, onMenu, onNew }: Props) {
+export function NoteList({ view, notes, notebooks, selectedId, onSelect, onMenu, onNew, onHide }: Props) {
   const still = useReducedMotion()
   const [query, setQuery] = useState("")
   const [sort, setSort] = useState<Sort>("updated")
@@ -56,6 +57,7 @@ export function NoteList({ view, notes, notebooks, selectedId, onSelect, onMenu,
           {view.filter === "trash"
             ? shown.length > 0 && <button className="btn btn-ghost btn-danger" onClick={() => confirm("Permanently delete everything in Trash?") && emptyTrash()}>Empty</button>
             : <button className="icon-btn" onClick={onNew} aria-label="New note" title="New note (Ctrl+Alt+N)"><Icon name="plus" /></button>}
+          <button className="icon-btn desktop-only" onClick={onHide} aria-label="Hide notes list" title="Hide notes list"><Icon name="columns" /></button>
         </div>
         <div className="search">
           <Icon name="search" />

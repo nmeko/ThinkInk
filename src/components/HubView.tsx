@@ -34,7 +34,7 @@ export function HubView({ notes, openHubId, onOpenNote }: { notes: Note[]; openH
   const h = hubs.find((x) => x.hubId === current)
 
   return (
-    <div className="view"><div className="view-inner hub-layout">
+    <div className="view"><div className={`view-inner${hubs.length ? " hub-layout" : ""}`}>
       <aside className="hub-list" aria-label="Your hubs">
         <h1>Study hubs</h1>
         <p className="lead" style={{ fontSize: 14 }}>Share notes and messages with a class or study group. Everything is encrypted on your device; only people with the invite link can read it.</p>

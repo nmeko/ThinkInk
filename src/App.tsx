@@ -117,11 +117,17 @@ export default function App() {
       <StorageBanner noteCount={notes.length} />
       <div className={`app${wide ? " wide" : ""}${hidden.nav ? " no-nav" : ""}${hidden.list ? " no-list" : ""}`} data-mobile={pane}>
         <Sidebar view={view} setView={setView} notes={notes} notebooks={notebooks} dueCount={dueCount} onNew={(t) => newNote(t)} onImport={() => setImporting(true)}
-          onAbout={() => setIntro(true)} theme={theme} toggleTheme={() => setTheme((t) => (t === "dark" ? "light" : "dark"))} />
+          onAbout={() => setIntro(true)} onHide={() => togglePane("nav")} theme={theme} toggleTheme={() => setTheme((t) => (t === "dark" ? "light" : "dark"))} />
         {view.kind === "notes" && (
-          <NoteList view={view} notes={notes} notebooks={notebooks} selectedId={selectedId} onSelect={openNote} onMenu={() => setPane("nav")} onNew={() => newNote()} />
+          <NoteList view={view} notes={notes} notebooks={notebooks} selectedId={selectedId} onSelect={openNote} onMenu={() => setPane("nav")} onNew={() => newNote()} onHide={() => togglePane("list")} />
         )}
         <main className="main-pane">
+          {(hidden.nav || (hidden.list && !wide)) && (
+            <div className="reopen desktop-only" role="group" aria-label="Hidden panels">
+              {hidden.nav && <button className="btn btn-ghost" onClick={() => togglePane("nav")}><Icon name="sidebar" /> Show sidebar</button>}
+              {hidden.list && !wide && <button className="btn btn-ghost" onClick={() => togglePane("list")}><Icon name="columns" /> Show notes</button>}
+            </div>
+          )}
           {wide && <button className="icon-btn mobile-only" style={{ margin: 8 }} onClick={() => setPane("nav")} aria-label="Open menu"><Icon name="menu" /></button>}
           {view.kind === "study" ? <StudyView notes={notes} notebooks={notebooks} onOpenNote={openNote} />
             : view.kind === "ask" ? <AskView key={view.q ?? ""} notes={notes} onOpenNote={openNote} initial={view.q} />
@@ -154,10 +160,6 @@ export default function App() {
         note={view.kind === "notes" && selected && !selected.deletedAt ? { title: displayTitle(selected), text: selected.text.slice(0, 12000) } : undefined}
         onNavigate={(a, q) => (a === "import" ? setImporting(true) : setView(a === "quiz" ? { kind: "study" } : { kind: "ask", q }))}
       />
-      <div className="pane-dock" role="group" aria-label="Panels">
-        <button className="icon-btn" data-off={hidden.nav || undefined} onClick={() => togglePane("nav")} title={`${hidden.nav ? "Show" : "Hide"} sidebar (Ctrl \\ hides both panels)`} aria-label={hidden.nav ? "Show sidebar" : "Hide sidebar"}><Icon name="sidebar" /></button>
-        {!wide && <button className="icon-btn" data-off={hidden.list || undefined} onClick={() => togglePane("list")} title={`${hidden.list ? "Show" : "Hide"} notes list`} aria-label={hidden.list ? "Show notes list" : "Hide notes list"}><Icon name="columns" /></button>}
-      </div>
       <div role="status" aria-live="polite" className="toast-slot">
         <AnimatePresence>
           {message && (
